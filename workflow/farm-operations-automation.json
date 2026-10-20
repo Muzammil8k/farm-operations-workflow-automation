@@ -1,0 +1,368 @@
+{
+  "name": "farm-operations-automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "farm-record",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b903299b-5931-4028-8e9a-c376cf350ea6",
+      "name": "01 - Receive Farm Record",
+      "webhookId": "471b0740-97ce-4a91-86df-786cc0b5dfce"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst data = $json.body ?? $json;\n\nconst required = [\n  \"pond_id\",\n  \"record_date\",\n  \"temperature_c\",\n  \"dissolved_oxygen_mg_l\",\n  \"feed_kg\"\n];\n\nconst missing = required.filter(\n  key => data[key] === undefined ||\n         data[key] === null ||\n         String(data[key]).trim() === \"\"\n);\n\nconst temperature = Number(data.temperature_c);\nconst oxygen = Number(data.dissolved_oxygen_mg_l);\nconst feed = Number(data.feed_kg);\n\nconst numericValid =\n  Number.isFinite(temperature) &&\n  Number.isFinite(oxygen) &&\n  Number.isFinite(feed);\n\nconst rangesValid = numericValid &&\n  temperature >= 0 && temperature <= 50 &&\n  oxygen >= 0 && oxygen <= 30 &&\n  feed >= 0;\n\nconst is_valid = missing.length === 0 && rangesValid;\n\nlet alert_status = \"Normal\";\n\nif (is_valid && oxygen < 5) {\n  alert_status = \"Low dissolved oxygen\";\n} else if (is_valid && temperature > 35) {\n  alert_status = \"High temperature\";\n}\n\nconst record_id = [\n  String(data.pond_id ?? \"\").trim(),\n  String(data.record_date ?? \"\").trim()\n].join(\"_\");\n\nreturn {\n  json: {\n    record_id,\n    submitted_at: new Date().toISOString(),\n    pond_id: String(data.pond_id ?? \"\").trim(),\n    record_date: data.record_date ?? \"\",\n    temperature_c: numericValid ? temperature : null,\n    dissolved_oxygen_mg_l: numericValid ? oxygen : null,\n    feed_kg: numericValid ? feed : null,\n    validation_status: is_valid\n      ? \"Valid\"\n      : `Invalid: ${\n          missing.length\n            ? \"Missing \" + missing.join(\", \")\n            : \"Invalid numeric value or out-of-range measurement\"\n        }`,\n    is_valid,\n    alert_status: is_valid ? alert_status : \"Not evaluated\"\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "279982dd-1f99-497e-af10-bf78e478d8cb",
+      "name": "02 - Validate & Process Data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4f1e78dd-1b62-4aaa-b70d-c6caf8aeb611",
+              "leftValue": "={{ $json.is_valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ],
+      "id": "67b573ec-8d0b-43c8-9dbe-d08786b746b4",
+      "name": "03 - Check Record Validity"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1u_6QAgUmTbjf7aR9PFtPe8Qrtt4VqzHD9SQ5dvepP10",
+          "mode": "list",
+          "cachedResultName": "Farm Operations Records",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1u_6QAgUmTbjf7aR9PFtPe8Qrtt4VqzHD9SQ5dvepP10/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 743120025,
+          "mode": "list",
+          "cachedResultName": "Records",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1u_6QAgUmTbjf7aR9PFtPe8Qrtt4VqzHD9SQ5dvepP10/edit#gid=743120025"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "record_id": "={{ $json.record_id }}",
+            "submitted_at": "={{ $json.submitted_at }}",
+            "pond_id": "={{ $json.pond_id }}",
+            "record_date": "={{ $json.record_date }}",
+            "temperature_c": "={{ $json.temperature_c }}",
+            "dissolved_oxygen_mg_l": "={{ $json.dissolved_oxygen_mg_l }}",
+            "feed_kg": "={{ $json.feed_kg }}",
+            "validation_status": "={{ $json.validation_status }}",
+            "alert_status": "={{ $json.alert_status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "record_id",
+              "displayName": "record_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "submitted_at",
+              "displayName": "submitted_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pond_id",
+              "displayName": "pond_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "record_date",
+              "displayName": "record_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "temperature_c",
+              "displayName": "temperature_c",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "dissolved_oxygen_mg_l",
+              "displayName": "dissolved_oxygen_mg_l",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "feed_kg",
+              "displayName": "feed_kg",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "validation_status",
+              "displayName": "validation_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "alert_status",
+              "displayName": "alert_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        704,
+        -128
+      ],
+      "id": "b5b4becb-95af-4c78-8eff-cc05d1342d24",
+      "name": "04 - Save to Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "TySyHDztY3IfDiNG",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a82526f4-a720-499d-9dd2-065a268a8968",
+              "leftValue": "={{ $json.alert_status }}",
+              "rightValue": "Normal",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        912,
+        -128
+      ],
+      "id": "4e84a02b-b55b-40ff-b6a5-f9a5465ed9f2",
+      "name": "05 - Check Alert Thresholds"
+    },
+    {
+      "parameters": {
+        "fromEmail": "qwertytube401@gmail.com",
+        "toEmail": "muzammilmalik8k@gmail.com",
+        "subject": "={{ $json.alert_status }} - {{ $json.pond_id }}",
+        "html": "=\n<h2>Farm Operations Alert</h2>\n\n<p>A pond measurement requires attention.</p>\n\n<table border=\"1\" cellpadding=\"8\" cellspacing=\"0\">\n  <tr>\n    <td><b>Pond ID</b></td>\n    <td>{{ $json.pond_id }}</td>\n  </tr>\n  <tr>\n    <td><b>Record Date</b></td>\n    <td>{{ $json.record_date }}</td>\n  </tr>\n  <tr>\n    <td><b>Temperature</b></td>\n    <td>{{ $json.temperature_c }} °C</td>\n  </tr>\n  <tr>\n    <td><b>Dissolved Oxygen</b></td>\n    <td>{{ $json.dissolved_oxygen_mg_l }} mg/L</td>\n  </tr>\n  <tr>\n    <td><b>Feed Quantity</b></td>\n    <td>{{ $json.feed_kg }} kg</td>\n  </tr>\n  <tr>\n    <td><b>Alert</b></td>\n    <td>{{ $json.alert_status }}</td>\n  </tr>\n</table>\n\n<p>Please inspect the pond and verify the measurements.</p>\n<p><i>Automated notification from Farm Operations Workflow Automation.</i></p>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1168,
+        -144
+      ],
+      "id": "cbff2fc1-54c4-47ad-8f72-644c5e176fe0",
+      "name": "06 - Send Farm Alert",
+      "webhookId": "56d8e5a5-1574-4a6c-a21d-ab3c7b4302d2",
+      "credentials": {
+        "smtp": {
+          "id": "DwPwsRlCViBVeFcO",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{\n  {\n    success: false,\n    message: \"Invalid farm record\",\n    errors: $json.validation_status\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        720,
+        112
+      ],
+      "id": "fc6d47c1-7d89-45a4-824b-4ecec1de56f8",
+      "name": "07 - Return Validation Error"
+    },
+    {
+      "parameters": {
+        "content": "## Farm Operations Workflow Automation\n\n**Purpose:** Automate farm and pond record collection, data validation, storage, and alert notifications using n8n.\n\n**How it works:**\n1. **Receive Data:** Accepts pond records through a webhook.\n2. **Validate Records:** JavaScript checks required fields, numeric values, and valid measurement ranges.\n3. **Route Records:** Invalid submissions receive an error response, while valid records proceed to storage.\n4. **Store Data:** Saves valid pond measurements and feeding records to Google Sheets.\n5. **Monitor Conditions:** Checks measurements against configured thresholds and sends email alerts for abnormal conditions.\n\nAlert Logic:\n\nDissolved oxygen < 5 mg/L → Send a low-oxygen alert.\n\nTemperature > 35°C → Send a high-temperature alert.\n\nAll measurements within configured alert thresholds → No alert email.\n\nMissing fields or invalid measurements → Reject the submission and return an error response.\n\n**Tech Stack:** n8n · Webhooks · JavaScript · REST APIs · Google Sheets · Email Notifications\n",
+        "height": 448,
+        "width": 688
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -768,
+        48
+      ],
+      "typeVersion": 1,
+      "id": "4e0be1f3-fb3c-42a0-9d7b-6db583a314e2",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "01 - Receive Farm Record": {
+      "main": [
+        [
+          {
+            "node": "02 - Validate & Process Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "02 - Validate & Process Data": {
+      "main": [
+        [
+          {
+            "node": "03 - Check Record Validity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "03 - Check Record Validity": {
+      "main": [
+        [
+          {
+            "node": "04 - Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "07 - Return Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "04 - Save to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "05 - Check Alert Thresholds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "05 - Check Alert Thresholds": {
+      "main": [
+        [
+          {
+            "node": "06 - Send Farm Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "6a800381-bcaf-43fd-b087-c4728bff2f9b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3d88b53a19f6560d39eb0f3cdf6151de3c8a72c064f172daab8d3221b6eff2e0"
+  },
+  "nodeGroups": [],
+  "id": "cmQzGM7zCCsWWmo9",
+  "tags": []
+}
